@@ -1,0 +1,3 @@
+This is the prompt meant for the organization to specify what
+kind of software is suitable for use.
+- The software must comply with GDPR (if it can be used in a gdpr compliant manner, it is compliant)

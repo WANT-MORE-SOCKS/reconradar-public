@@ -1,0 +1,9 @@
+# This is an example config. Please add your API key and rename
+# this file to "config.json".
+# Remove all comments from this file afterwards.
+{
+    "api_key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "django_secret_key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "model": "gemini-2.5-flash"
+    "expiration_time_seconds": 604800
+}

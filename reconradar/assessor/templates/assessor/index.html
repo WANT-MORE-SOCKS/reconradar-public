@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reconradar - Security Assessment</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #2d3748;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .search-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 12px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+
+        .search-btn {
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102,126,234,0.4);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-container {
+            display: none;
+        }
+
+        .results-container.active {
+            display: block;
+        }
+
+        .top-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1100px) {
+            .top-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .score-matrix-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .summary-content {
+            color: #4a5568;
+            line-height: 1.8;
+            font-size: 1.05em;
+        }
+
+        .vendor-info {
+            margin-bottom: 30px;
+        }
+
+        .vendor-name {
+            font-size: 2em;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .vendor-details {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            color: #718096;
+            font-size: 0.9em;
+        }
+
+        .vendor-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .score-matrix-grid {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .suitability-score {
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 0.95em;
+            color: #718096;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .score-circle {
+            width: 160px;
+            height: 160px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .score-number {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .score-ring {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                #667eea 0%,
+                #764ba2 var(--score-percent),
+                #e2e8f0 var(--score-percent),
+                #e2e8f0 100%
+            );
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .score-ring-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: white;
+        }
+
+        .confidence-level {
+            margin-top: 10px;
+            color: #4a5568;
+            font-size: 0.85em;
+        }
+
+        .radar-container {
+            position: relative;
+            height: 300px;
+        }
+
+        @media (max-width: 768px) {
+            .score-matrix-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .main-boxes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 968px) {
+            .main-boxes {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .large-box {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            opacity: 0.5;
+            transition: all 0.3s;
+        }
+
+        .large-box.loaded {
+            opacity: 1;
+        }
+
+        .large-box.loading {
+            opacity: 0.7;
+        }
+
+        .box-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .box-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5em;
+        }
+
+        .box-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .box-content {
+            color: #4a5568;
+            line-height: 1.8;
+        }
+
+        .subsection {
+            margin-bottom: 30px;
+        }
+
+        .subsection:last-child {
+            margin-bottom: 0;
+        }
+
+        .subsection-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .subsection-icon {
+            font-size: 1.1em;
+        }
+
+        .subsection-content {
+            color: #4a5568;
+            line-height: 1.7;
+            padding-left: 32px;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .alternatives-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .alternatives-card h2 {
+            font-size: 1.8em;
+            margin-bottom: 25px;
+            color: #2d3748;
+        }
+
+        .alternative-item {
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .alternative-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .alternative-reason {
+            color: #718096;
+            line-height: 1.6;
+        }
+
+        .citation {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-left: 4px;
+            text-decoration: none;
+        }
+
+        .citation:hover {
+            background: #764ba2;
+        }
+
+        .highlight-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 12px;
+            border-radius: 6px;
+        }
+
+        .rubric-btn {
+            margin-top: 15px;
+            padding: 8px 20px;
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .rubric-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .rubric-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .rubric-modal.active {
+            display: flex;
+        }
+
+        .rubric-content {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .rubric-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2em;
+            color: #718096;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .rubric-close:hover {
+            color: #2d3748;
+        }
+
+        .rubric-content h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .rubric-content p {
+            color: #4a5568;
+            line-height: 1.7;
+            margin-bottom: 15px;
+        }
+
+        .rubric-formula {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📡 Reconradar</h1>
+            <p>AI-Powered Security Assessment for CISOs</p>
+        </div>
+
+        <div class="search-card">
+            <form class="search-form" id="searchForm" form method="get">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="queryInput"
+                    name="query"
+                    placeholder="Enter product name or URL (e.g., Slack, github.com, CrowdStrike)"
+                    required
+                />
+                <button type="submit" class="search-btn" id="searchBtn">
+                    Generate Trust Brief
+                </button>
+            </form>
+        </div>
+
+        <div class="results-container" id="resultsContainer">
+            <!-- Score & Matrix Combined Card -->
+            <div class="top-section">
+                <div class="score-matrix-card">
+                    <div class="vendor-info">
+                        <div class="vendor-name" id="vendorName">{{ metadata.name_version }}</div>
+                        <div class="vendor-details">
+                            <div class="vendor-detail-item">
+                                <span>📂</span>
+                                <span id="category">{{ metadata.category }}</span>
+                            </div>
+                            <div class="vendor-detail-item">
+                                <span>🌐</span>
+                                <span id="website">{{ metadata.site }}</span>
+                            </div>
+                            <div class="vendor-detail-item">
+                                <span>🏢</span>
+                                <span id="vendor">{{ metadata.vendor }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="score-matrix-grid">
+                        <div class="suitability-score">
+                            <div class="score-label">Suitability Score</div>
+                            <div class="score-circle">
+                                <div class="score-ring" id="scoreRing" style="--score-percent: 0%">
+                                    <div class="score-ring-inner">
+                                        <div class="score-number" id="scoreNumber">-</div>
+                                    </div>
+                                </div>
+                            </div>
+			    <button class="rubric-btn" id="rubricBtn">Rubric?</button>
+                        </div>
+
+                        <div class="radar-container">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Executive Summary Card -->
+                <div class="summary-card">
+                    <div class="box-header">
+                        <div class="box-icon">📋</div>
+                        <div class="box-title">Executive Summary</div>
+                    </div>
+                    <div class="summary-content">
+                        {% if summary_result %}
+                            {{ summary_result|safe }}
+                        {% else %}
+                            <div class="loading-spinner"><div class="spinner"></div></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Large Boxes -->
+            <div class="main-boxes">
+                <!-- Security Risk Analysis Box -->
+                <div class="large-box" id="securityBox">
+                    <div class="box-header">
+                        <div class="box-icon">🔒</div>
+                        <div class="box-title">Security Risk Analysis</div>
+                    </div>
+                    <div class="box-content" id="securityContent">
+                        {% if security_result %}
+                            {{ security_result|safe }}
+                        {% else %}
+                            <div class="loading-spinner"><div class="spinner"></div></div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Compliance & Controls Box -->
+                <div class="large-box" id="complianceBox">
+                    <div class="box-header">
+                        <div class="box-icon">⚙️</div>
+                        <div class="box-title">Compliance & Controls</div>
+                    </div>
+                    <div class="box-content" id="complianceContent">
+                        {% if compliance_result %}
+                            {{ compliance_result|safe }}
+                        {% else %}
+                            <div class="loading-spinner"><div class="spinner"></div></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alternatives -->
+            <div class="alternatives-card">
+                <h2>🔄 Recommended Alternatives</h2>
+                <div id="alternatives">
+                    {% if alternatives_result %}
+                        {{ alternatives_result|safe }}
+                    {% else %}
+                        <div class="loading-spinner"><div class="spinner"></div></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+                <!-- Rubric Modal -->
+        <div class="rubric-modal" id="rubricModal">
+            <div class="rubric-content">
+                <button class="rubric-close" id="rubricClose">&times;</button>
+                <h3>📊 Scoring Rubric</h3>
+                <p>The suitability score is calculated using a comprehensive evaluation across six key security dimensions:</p>
+                
+                <p><strong>The Six Dimensions:</strong></p>
+                <ul style="color: #4a5568; line-height: 1.8; margin-left: 20px; margin-bottom: 15px;">
+                    <li><strong>Security:</strong> Vulnerability management and security practices</li>
+                    <li><strong>Compliance:</strong> Adherence to standards and regulations</li>
+                    <li><strong>Reputation:</strong> Vendor track record and market presence</li>
+                    <li><strong>Controls:</strong> Administrative and technical controls</li>
+                    <li><strong>Privacy:</strong> Data handling and privacy protections</li>
+                    <li><strong>Reliability:</strong> Service stability and incident history</li>
+                </ul>
+
+                <p><strong>Formula:</strong></p>
+                <div class="rubric-formula">
+                    Final Score = min(Average of all 6 scores, Compliance Score)
+                </div>
+
+                <p>This means your final suitability score is the <strong>average of all six dimensions</strong>, but it's capped by the <strong>Compliance score</strong>. This ensures that even if other areas score highly, poor compliance performance will appropriately limit the overall rating.</p>
+
+                <p><strong>Why cap by Compliance?</strong> Compliance is considered a critical baseline requirement. A product cannot receive a high suitability score if it fails to meet essential regulatory and compliance standards, regardless of performance in other areas.</p>
+            </div>
+        </div>
+    </div>
+
+    {{ scores|json_script:"scores-data" }}
+    <script>
+        window.SCORES = JSON.parse(document.getElementById("scores-data").textContent);
+        window.MANUAL_SCORE = "{{ manual_score }}";
+    </script>
+
+    <script>
+        document.getElementById('rubricBtn').addEventListener('click', () => {
+            document.getElementById('rubricModal').classList.add('active');
+        });
+
+        document.getElementById('rubricClose').addEventListener('click', () => {
+            document.getElementById('rubricModal').classList.remove('active');
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('rubricModal').addEventListener('click', (e) => {
+            if (e.target.id === 'rubricModal') {
+                document.getElementById('rubricModal').classList.remove('active');
+            }
+        });
+    </script>
+
+    <script>
+        let radarChart = null;
+
+        // Initialize radar chart
+        function initRadarChart() {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Security', 'Compliance', 'Reputation', 'Controls', 'Privacy', 'Reliability'],
+                    datasets: [{
+                        label: 'Security Posture',
+                        data: [0, 0, 0, 0, 0, 0],
+                        fill: true,
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        borderColor: 'rgb(102, 126, 234)',
+                        pointBackgroundColor: 'rgb(102, 126, 234)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(102, 126, 234)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0, 0, 0, 0.1)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                            pointLabels: { font: { size: 11 } },
+                            suggestedMin: 0,
+                            suggestedMax: 100,
+                            ticks: { stepSize: 20 }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Update radar chart
+        function updateRadarChart(data) {
+            if (radarChart) {
+                radarChart.data.datasets[0].data = [
+                    data.security || 0,
+                    data.compliance || 0,
+                    data.reputation || 0,
+                    data.controls || 0,
+                    data.privacy || 0,
+                    data.reliability || 0
+                ];
+                radarChart.update();
+            }
+        }
+
+        // Handle form submission - just submit and reload page
+        document.getElementById('searchForm').addEventListener('submit', (e) => {
+            const btn = document.getElementById('searchBtn');
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+            
+            // Initialize radar chart if not done
+            if (!radarChart) {
+                initRadarChart();
+            }
+            
+            // Form will submit normally to Django view
+        });
+
+        // On page load, if results exist, show them
+        window.addEventListener('DOMContentLoaded', () => {
+            const securityResult = document.getElementById('securityContent').textContent.trim();
+            const complianceResult = document.getElementById('complianceContent').textContent.trim();
+            const alternativesResult = document.getElementById('alternatives').textContent.trim();
+            
+            // If any content exists (not just loading spinner), show results
+            if (securityResult || complianceResult || alternativesResult) {
+                document.getElementById('resultsContainer').classList.add('active');
+                
+                if (securityResult) {
+                    document.getElementById('securityBox').classList.add('loaded');
+                }
+                if (complianceResult) {
+                    document.getElementById('complianceBox').classList.add('loaded');
+                }
+                
+                // Initialize radar chart
+                if (!radarChart) {
+                    initRadarChart();
+                }
+                
+                // Update with default values or parse from data if available
+                if (window.SCORES) {
+                    updateRadarChart({
+                        security: window.SCORES.security,
+                        compliance: window.SCORES.compliance,
+                        reputation: window.SCORES.reputation,
+                        controls: window.SCORES.controls,
+                        privacy: window.SCORES.privacy,
+                        reliability: window.SCORES.reliability
+                    });
+
+            let score_sum = 0;
+            score_sum += window.SCORES.security,
+            score_sum += window.SCORES.compliance,
+            score_sum += window.SCORES.reputation,
+            score_sum += window.SCORES.controls,
+            score_sum += window.SCORES.privacy,
+            score_sum += window.SCORES.reliability
+            let score_final = Math.floor(Math.min(score_sum/6, window.SCORES.compliance));
+                document.getElementById("scoreNumber").innerText = score_final;
+                document.getElementById("scoreRing").style.setProperty("--score-percent", `${score_final}%`);
+            };
+        };
+	});
+    </script>
+</body>
+</html>
