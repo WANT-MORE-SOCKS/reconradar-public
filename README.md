@@ -15,9 +15,13 @@ get_random_secret_key()
 
 ## Run for testing:
 Initiliaze the database:
+
 `python reconradar/manage.py makemigrations assessor`
+
 `python reconradar/manage.py migrate assessor`
+
 Start server:
+
 `python reconradar/manage.py runserver`
 
 ## Deployment:
